@@ -32,13 +32,33 @@ def compute_priority_score(task):
     )
 
 
+def score_tasks(tasks):
+    """
+    Add a `score` to each task and return them sorted by score (descending).
+    """
+    scored = []
+    for t in tasks:
+        t_copy = dict(t)
+        t_copy["score"] = compute_priority_score(t_copy)
+        scored.append(t_copy)
+
+    scored.sort(key=lambda x: x["score"], reverse=True)
+    return scored
+
+
 # Main function
 if __name__ == "__main__":
-    print("\n=== Scored Tasks (debug) ===")
+    print("=== Raw Tasks ===")
     for t in SAMPLE_TASKS:
-        score = compute_priority_score(t)
+        print("-", t["title"])
+
+    scored = score_tasks(SAMPLE_TASKS)
+
+    print("\n=== Scored & Sorted Tasks (debug) ===")
+    for t in scored:
         print(
-            f"{score:>2} - {t['title']} | "
+            f"{t['score']:>4} - {t['title']} | "
             f"imp={t['importance']} urg={t['urgency']} "
-            f"des={t['desire']} drag={t['drag']}"
+            f"des={t['desire']} drag={t.get('drag', 'NA')} "
+            f"est={t['est_minutes']} min"
         )
