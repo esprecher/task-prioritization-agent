@@ -7,9 +7,9 @@
 # - Desire: How much do you want to do this task?
 # They also have a spot to add the estimate time to complete the task in minutes.
 SAMPLE_TASKS = [
-    {"title": "Email accountant", "importance": 3, "urgency": 3, "desire": 1, "drag": 3, "est_minutes": 20},
-    {"title": "Practice mandolin", "importance": 2, "urgency": 1, "desire": 3, "drag": 1, "est_minutes": 30},
-    {"title": "Go for a walk", "importance": 2, "urgency": 2, "desire": 2, "drag": 1, "est_minutes": 20},
+    {"title": "Email accountant", "importance": 3, "urgency": 3, "desire": 1, "est_minutes": 20},
+    {"title": "Practice mandolin", "importance": 2, "urgency": 1, "desire": 3, "est_minutes": 30},
+    {"title": "Go for a walk", "importance": 2, "urgency": 2, "desire": 2, "est_minutes": 20},
 ]
 
 # Function for computing task priority score
@@ -46,6 +46,32 @@ def score_tasks(tasks):
     return scored
 
 
+def choose_shortlist(scored_tasks, available_minutes=60):
+    """
+    Choose a shortlist of tasks that fit within the given time budget.
+    Full debug prints an explaination of each decision.
+    """
+    remaining = available_minutes
+    shortlist = []
+
+    print(f"[DEBUG] Starting shortlist selection with {available_minutes} minutes.")
+    for t in scored_tasks:
+        title = t['title']
+        est = t['est_minutes']
+        score = t['score']
+
+        print(f"[DEBUG] Considering: {title} (score={score}, est={est} min)")
+        
+        if est <= remaining:
+            shortlist.append(t)
+            remaining -= est
+            print(f"[DEBUG] -> SELECTED. {remaining} minutes remaining.")
+        else:
+            print(f"[DEBUG] -> SKIPPED (not enough time). Still {remaining} minutes left.")
+
+    print(f"[DEBUG] Selection complete. Final remaining minutes: {remaining}.")
+    return shortlist
+
 # Main function
 if __name__ == "__main__":
     print("=== Raw Tasks ===")
@@ -62,3 +88,9 @@ if __name__ == "__main__":
             f"des={t['desire']} drag={t.get('drag', 'NA')} "
             f"est={t['est_minutes']} min"
         )
+    
+    print("\n=== Shortlist (deterministic, debug) ===")
+    shortlist = choose_shortlist(scored, available_minutes=60)
+
+    for t in shortlist:
+        print(f"- {t['title']} ({t['est_minutes']} min, score={t['score']})")
