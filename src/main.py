@@ -1,4 +1,13 @@
 
+# Master debug flag for the entire script.
+DEBUG = True
+
+def log_debug(msg: str):
+    """Print debug messages only when DEBUG is True."""
+    if DEBUG:
+        print(f"[DEBUG] {msg}")
+
+
 # Create some sample tasks for testing purposes.
 # Tasks are scored on a scale of 1-3 (1=low, 2=medium, 3=high) for each 
 # of the following dimensions:
@@ -54,22 +63,22 @@ def choose_shortlist(scored_tasks, available_minutes=60):
     remaining = available_minutes
     shortlist = []
 
-    print(f"[DEBUG] Starting shortlist selection with {available_minutes} minutes.")
+    log_debug(f"Starting shortlist selection with {available_minutes} minutes.")
     for t in scored_tasks:
         title = t['title']
         est = t['est_minutes']
         score = t['score']
 
-        print(f"[DEBUG] Considering: {title} (score={score}, est={est} min)")
+        log_debug(f"Considering: {title} (score={score}, est={est} min)")
         
         if est <= remaining:
             shortlist.append(t)
             remaining -= est
-            print(f"[DEBUG] -> SELECTED. {remaining} minutes remaining.")
+            log_debug(f"-> SELECTED. {remaining} minutes remaining.")
         else:
-            print(f"[DEBUG] -> SKIPPED (not enough time). Still {remaining} minutes left.")
+            log_debug(f"-> SKIPPED (not enough time). Still {remaining} minutes left.")
 
-    print(f"[DEBUG] Selection complete. Final remaining minutes: {remaining}.")
+    log_debug(f"Selection complete. Final remaining minutes: {remaining}.")
     return shortlist
 
 # Main function
@@ -94,3 +103,5 @@ if __name__ == "__main__":
 
     for t in shortlist:
         print(f"- {t['title']} ({t['est_minutes']} min, score={t['score']})")
+    
+    log_debug(f"Final shortlist: {[t['title'] for t in shortlist]}")
