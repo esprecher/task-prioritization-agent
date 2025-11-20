@@ -1,6 +1,8 @@
-
 # Master debug flag for the entire script.
 DEBUG = True
+
+import json
+from pprint import pformat
 
 def log_debug(msg: str):
     """Print debug messages only when DEBUG is True."""
@@ -81,6 +83,21 @@ def choose_shortlist(scored_tasks, available_minutes=60):
     log_debug(f"Selection complete. Final remaining minutes: {remaining}.")
     return shortlist
 
+
+def assemble_plan_data(shortlist, all_tasks, available_minutes, energy_level):
+    """
+    Assemble a clean JSON-friendly dictionary representing
+    the user's constraints and the system's deterministic choices.
+    """
+    data = {
+        "available_minutes": available_minutes,
+        "energy_level": energy_level,
+        "shortlist": shortlist,
+        "all_tasks": all_tasks,
+    }
+    log_debug(f"Constructed plan data with {len(shortlist)} shortlist tasks.")
+    return data
+
 # Main function
 if __name__ == "__main__":
     print("=== Raw Tasks ===")
@@ -105,3 +122,12 @@ if __name__ == "__main__":
         print(f"- {t['title']} ({t['est_minutes']} min, score={t['score']})")
     
     log_debug(f"Final shortlist: {[t['title'] for t in shortlist]}")
+
+    print("\n=== Assembling Plan Data (debug) ===")
+    plan_data = assemble_plan_data(
+        shortlist=shortlist,
+        all_tasks=scored,
+        available_minutes=60,
+        energy_level="medium",
+    )
+    log_debug("Plan data contents:\n" + pformat(plan_data, indent=2))
