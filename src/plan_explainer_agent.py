@@ -6,6 +6,7 @@ assemble_plan_data) and asks Gemini to explain the plan to the user.
 """
 
 import json
+import re
 from pprint import pformat
 
 from dotenv import load_dotenv
@@ -56,14 +57,22 @@ def main():
         "- a shortlist of tasks chosen by a deterministic planner\n"
         "- the user's available time and energy level\n\n"
         "Your job is to:\n"
-        "1) Explain in clear, friendly language why this shortlist is a good plan,\n"
-        "2) Mention any tradeoffs that were made,\n"
-        "3) Optionally suggest one small tweak if it would clearly help.\n"
+        "1) Explain why this shortlist is a good plan,\n"
+        "2) Optionally adjust the shortlist slightly if it would clearly improve it,\n"
+        "3) Suggest 0–2 'nice to have' tasks if there is extra time or energy.\n\n"
+        "IMPORTANT:\n"
+        "- You MUST respond with a single valid JSON object only.\n"
+        "- Do NOT include any text before or after the JSON.\n"
+        "- Do NOT wrap the JSON in Markdown code fences (no ```json ... ```).\n"
+        "- The JSON must have exactly these fields:\n"
+        "  - 'shortlist': list of {title, reason, est_minutes, score}\n"
+        "  - 'nice_to_have': list of {title, reason, est_minutes, score}\n"
+        "  - 'summary': a short string explaining the overall plan.\n"
     )
 
     user_prompt = (
         "Here is the current plan data as JSON.\n"
-        "Please analyze it and then explain the plan to the user.\n\n"
+        "Use it to construct your JSON response as described in the system instructions.\n\n"
         "PLAN_DATA_JSON:\n"
         + json.dumps(plan_data, indent=2)
     )
@@ -81,6 +90,34 @@ def main():
 
     print("\n[Model Explanation]")
     print(response.text)
+    
+    print("\n\n-----\n[Parsed JSON Plan]")
+    raw_text = response.text.strip()
+
+    # If the model wrapped the JSON in Markdown code fences, strip them.
+    if raw_text.startswith("```"):
+        # Remove leading ``` or ```json line
+        first_newline = raw_text.find("\n")
+        if first_newline != -1:
+            raw_text = raw_text[first_newline + 1 :]
+        # Remove trailing ```
+        if raw_text.endswith("```"):
+            raw_text = raw_text[:-3].strip()
+
+    try:
+        plan_json = json.loads(raw_text)
+    except json.JSONDecodeError as e:
+        print("ERROR: Failed to parse JSON from model response:", e)
+        print("Raw text was:\n", raw_text)
+        return
+
+    # Pretty-print the parsed structure
+    print(json.dumps(plan_json, indent=2))
+
+    # Optionally: show shortlist titles
+    print("\nShortlist tasks chosen by the agent:")
+    for t in plan_json.get("shortlist", []):
+        print(f"- {t.get('title')} (est={t.get('est_minutes')} min, score={t.get('score')})")
 
 
 if __name__ == "__main__":
