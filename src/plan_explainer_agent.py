@@ -118,6 +118,40 @@ def main():
     print("\nShortlist tasks chosen by the agent:")
     for t in plan_json.get("shortlist", []):
         print(f"- {t.get('title')} (est={t.get('est_minutes')} min, score={t.get('score')})")
+    
+    
+    # Better human-readable output
+    print("\n\n=== Final Task Plan ===")
+
+    # Shortlist section
+    print("\nShortlist (focus tasks):")
+    for t in plan_json.get("shortlist", []):
+        title = t.get("title")
+        est = t.get("est_minutes")
+        score = t.get("score")
+        reason = t.get("reason")
+        print(f"- {title} [{est} min, score={score}]")
+        print(f"  Reason: {reason}")
+
+    # Nice-to-have section
+    nice_to_have = plan_json.get("nice_to_have", [])
+    if nice_to_have:
+        print("\nNice-to-have tasks (optional):")
+        for t in nice_to_have:
+            title = t.get("title")
+            est = t.get("est_minutes")
+            score = t.get("score")
+            reason = t.get("reason")
+            print(f"- {title} [{est} min, score={score}]")
+            print(f"  Reason: {reason}")
+    else:
+        print("\nNo nice-to-have tasks suggested for this session.")
+
+    # Summary
+    summary = plan_json.get("summary")
+    if summary:
+        print("\nSummary:")
+        print(summary)
 
 
 if __name__ == "__main__":
