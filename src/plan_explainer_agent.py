@@ -37,15 +37,10 @@ def build_demo_plan_data():
     return plan_data
 
 
-def main():
-    # 1. Load environment variables
-    load_dotenv()
-    api_key = os.getenv("GOOGLE_API_KEY")
-    print("API Key Loaded:", bool(api_key))
-
-    # 2. Build deterministic plan_data
-    plan_data = build_demo_plan_data()
-
+def call_planning_agent(plan_data: dict) -> dict:
+    """
+    Send plan_data to the LLM planning agent and return the parsed JSON result.
+    """
     # 3. Initialize client
     client = genai.Client()
 
@@ -80,7 +75,7 @@ def main():
     print("\n[User → Model]")
     print(user_prompt)
 
-    # 5. Call the model
+    # Call the model
     response = client.models.generate_content(
         model=MODEL_NAME,
         contents=[
@@ -104,17 +99,28 @@ def main():
         if raw_text.endswith("```"):
             raw_text = raw_text[:-3].strip()
 
-    try:
-        plan_json = json.loads(raw_text)
-    except json.JSONDecodeError as e:
-        print("ERROR: Failed to parse JSON from model response:", e)
-        print("Raw text was:\n", raw_text)
-        return
-
+    plan_json = json.loads(raw_text)
     # Pretty-print the parsed structure
     print(json.dumps(plan_json, indent=2))
 
-    # Optionally: show shortlist titles
+    return plan_json
+
+
+def main():
+    # 1. Load environment variables
+    load_dotenv()
+    api_key = os.getenv("GOOGLE_API_KEY")
+    print("API Key Loaded:", bool(api_key))
+
+    # 2. Build deterministic plan_data
+    plan_data = build_demo_plan_data()
+
+    # 3. Call the planning agent
+    plan_json = call_planning_agent(plan_data)
+
+    # 4. The rest of your printing stays the same as before:
+    #    - shortlist titles
+    #    - Final Task Plan (those loops you already have)
     print("\nShortlist tasks chosen by the agent:")
     for t in plan_json.get("shortlist", []):
         print(f"- {t.get('title')} (est={t.get('est_minutes')} min, score={t.get('score')})")
@@ -152,7 +158,6 @@ def main():
     if summary:
         print("\nSummary:")
         print(summary)
-
 
 if __name__ == "__main__":
     main()
