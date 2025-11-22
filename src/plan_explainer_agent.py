@@ -106,27 +106,11 @@ def call_planning_agent(plan_data: dict) -> dict:
     return plan_json
 
 
-def main():
-    # 1. Load environment variables
-    load_dotenv()
-    api_key = os.getenv("GOOGLE_API_KEY")
-    print("API Key Loaded:", bool(api_key))
-
-    # 2. Build deterministic plan_data
-    plan_data = build_demo_plan_data()
-
-    # 3. Call the planning agent
-    plan_json = call_planning_agent(plan_data)
-
-    # 4. The rest of your printing stays the same as before:
-    #    - shortlist titles
-    #    - Final Task Plan (those loops you already have)
+def print_final_plan(plan_json: dict) -> None:
     print("\nShortlist tasks chosen by the agent:")
     for t in plan_json.get("shortlist", []):
         print(f"- {t.get('title')} (est={t.get('est_minutes')} min, score={t.get('score')})")
-    
-    
-    # Better human-readable output
+
     print("\n\n=== Final Task Plan ===")
 
     # Shortlist section
@@ -158,6 +142,24 @@ def main():
     if summary:
         print("\nSummary:")
         print(summary)
+
+
+def main():
+    # 1. Load environment variables
+    load_dotenv()
+    api_key = os.getenv("GOOGLE_API_KEY")
+    print("API Key Loaded:", bool(api_key))
+
+    # 2. Build deterministic plan_data
+    plan_data = build_demo_plan_data()
+
+    # 3. Call the planning agent
+    plan_json = call_planning_agent(plan_data)
+
+    # 4. Print the final plan:
+    #    - shortlist titles
+    #    - Final Task Plan (those loops you already have)
+    print_final_plan(plan_json)
 
 if __name__ == "__main__":
     main()
