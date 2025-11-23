@@ -17,6 +17,7 @@ import os
 
 from main import SAMPLE_TASKS, score_tasks, choose_shortlist, assemble_plan_data
 from plan_explainer_agent import call_planning_agent, print_final_plan
+from parse_tasks_agent import call_parse_tasks_agent
 
 
 def run_task_advisor(
@@ -36,9 +37,16 @@ def run_task_advisor(
         energy_level: str
     """
 
-    # Phase 1: If no tasks provided, use SAMPLE_TASKS
+    # Phase 1-Step 4: 
+    # If no tasks provided, use SAMPLE_TASKS. But if raw_tasks_str is provided, 
+    # use the Parse Tasks Agent to normalize it.
     if tasks is None:
-        tasks = SAMPLE_TASKS
+        if raw_tasks_str is not None:
+            # Use the Parse Tasks Agent to normalize the raw input
+            tasks = call_parse_tasks_agent(raw_tasks_str)
+        else:
+            # Fallback to built-in sample tasks
+            tasks = SAMPLE_TASKS
 
     # ---- Step A: Score tasks (deterministic) ----
     scored = score_tasks(tasks)
@@ -68,11 +76,20 @@ def main():
     api_key = os.getenv("GOOGLE_API_KEY")
     print("API Key Loaded:", bool(api_key))
 
-    # Demo scenario
+    # Demo: use raw JSON string and let the ParseTasksAgent normalize it
+    raw_tasks_str = """
+    [
+      {"title": "Email accountant", "importance": 3, "urgency": 3, "est_minutes": 20},
+      {"title": "Go for a walk", "importance": 2, "urgency": 2},
+      {"title": "Practice mandolin", "desire": 3, "est_minutes": 30}
+    ]
+    """
+
     run_task_advisor(
-        tasks=SAMPLE_TASKS,
+        tasks=None,
+        raw_tasks_str=raw_tasks_str,
         available_minutes=60,
-        energy_level="medium"
+        energy_level="medium",
     )
 
 
