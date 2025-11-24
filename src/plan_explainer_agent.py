@@ -26,14 +26,16 @@ def build_demo_plan_data():
     that we can hand to the model.
     """
     scored = score_tasks(SAMPLE_TASKS)
-    shortlist = choose_shortlist(scored, available_minutes=60)
+    suggested_shortlist = choose_shortlist(scored, available_minutes=60)
     plan_data = assemble_plan_data(
-        shortlist=shortlist,
         all_tasks=scored,
         available_minutes=60,
         energy_level="medium",
+        suggested_shortlist=suggested_shortlist,
     )
-    log_debug("Plan data assembled in plan_explainer_agent:\n" + pformat(plan_data, indent=2))
+    log_debug(
+        "Plan data assembled in plan_explainer_agent:\n" + pformat(plan_data, indent=2)
+    )
     return plan_data
 
 
@@ -48,14 +50,18 @@ def call_planning_agent(plan_data: dict) -> dict:
     system_instruction = (
         "You are a Personal Task Prioritization Advisor.\n"
         "You receive a JSON object describing:\n"
-        "- all tasks with scores and attributes\n"
-        "- a shortlist of tasks chosen by a deterministic planner\n"
-        "- the user's available time and energy level\n\n"
+        "- all tasks with scores and attributes (all_tasks)\n"
+        "- an optional suggested_shortlist chosen by a deterministic planner\n"
+        "- the user's available time (available_minutes) and energy level\n\n"
         "Your job is to:\n"
-        "1) Explain why this shortlist is a good plan,\n"
-        "2) Optionally adjust the shortlist slightly if it would clearly improve it,\n"
+        "1) Choose the actual shortlist of tasks yourself, based primarily on "
+        "   all_tasks, available_minutes, and energy_level.\n"
+        "2) You may use suggested_shortlist as a hint, but you are free to adjust "
+        "   tasks and ordering if it would clearly improve the plan.\n"
         "3) Suggest 0–2 'nice to have' tasks if there is extra time or energy.\n\n"
-        "IMPORTANT:\n"
+        "Constraints:\n"
+        "- The total estimated minutes of the shortlist should roughly fit within "
+        "  available_minutes.\n"
         "- You MUST respond with a single valid JSON object only.\n"
         "- Do NOT include any text before or after the JSON.\n"
         "- Do NOT wrap the JSON in Markdown code fences (no ```json ... ```).\n"

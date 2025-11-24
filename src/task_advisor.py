@@ -56,10 +56,10 @@ def run_task_advisor(
 
     # ---- Step C: Build plan_data ----
     plan_data = assemble_plan_data(
-        shortlist=shortlist,
         all_tasks=scored,
         available_minutes=available_minutes,
         energy_level=energy_level,
+        suggested_shortlist=shortlist,
     )
 
     # ---- Step D: Call the planning agent ----

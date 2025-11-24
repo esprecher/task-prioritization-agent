@@ -84,19 +84,36 @@ def choose_shortlist(scored_tasks, available_minutes=60):
     return shortlist
 
 
-def assemble_plan_data(shortlist, all_tasks, available_minutes, energy_level):
+def assemble_plan_data(
+    all_tasks,
+    available_minutes,
+    energy_level,
+    suggested_shortlist=None,
+):
     """
-    Assemble a clean JSON-friendly dictionary representing
-    the user's constraints and the system's deterministic choices.
+    Build the plan_data dict that will be sent to the planning agent.
+
+    - all_tasks: full scored task list
+    - available_minutes: time budget
+    - energy_level: string like "low", "medium", "high"
+    - suggested_shortlist: optional shortlist chosen by the deterministic planner
+      (the agent may use this as a hint, but it's not authoritative)
     """
-    data = {
+    plan_data = {
         "available_minutes": available_minutes,
         "energy_level": energy_level,
-        "shortlist": shortlist,
         "all_tasks": all_tasks,
     }
-    log_debug(f"Constructed plan data with {len(shortlist)} shortlist tasks.")
-    return data
+
+    if suggested_shortlist is not None:
+        plan_data["suggested_shortlist"] = suggested_shortlist
+        log_debug(
+            f"Constructed plan data with {len(suggested_shortlist)} suggested shortlist tasks."
+        )
+    else:
+        log_debug("Constructed plan data with no suggested shortlist.")
+
+    return plan_data
 
 # Main function
 if __name__ == "__main__":
