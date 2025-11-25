@@ -156,7 +156,7 @@ def main():
     # 1. Load environment variables
     load_dotenv()
     api_key = os.getenv("GOOGLE_API_KEY")
-    log_debug(f"API Key Loaded: {bool(api_key)}")
+    # log_debug(f"API Key Loaded: {bool(api_key)}")
 
     # 2. Build deterministic plan_data
     plan_data = build_demo_plan_data()

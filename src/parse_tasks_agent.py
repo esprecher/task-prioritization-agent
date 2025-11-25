@@ -35,7 +35,7 @@ def call_parse_tasks_agent(raw_tasks_str: str):
     """
     load_dotenv()
     api_key = os.getenv("GOOGLE_API_KEY")
-    log_debug(f"API Key Loaded: {bool(api_key)}")
+    # log_debug(f"API Key Loaded: {bool(api_key)}")
 
     client = genai.Client()
 
