@@ -14,8 +14,10 @@ import os
 from google import genai
 
 # Import your existing logic
-from main import SAMPLE_TASKS, score_tasks, choose_shortlist, assemble_plan_data, log_debug, DEBUG
-
+try:
+    from main import SAMPLE_TASKS, score_tasks, choose_shortlist, assemble_plan_data, log_debug, DEBUG
+except ImportError:
+    from src.main import SAMPLE_TASKS, score_tasks, choose_shortlist, assemble_plan_data, log_debug, DEBUG
 
 MODEL_NAME = "gemini-2.5-flash-lite"
 

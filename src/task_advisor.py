@@ -15,9 +15,16 @@ This file will become the root orchestrator for the ADK agent system.
 from dotenv import load_dotenv
 import os
 
-from main import SAMPLE_TASKS, score_tasks, choose_shortlist, assemble_plan_data
-from plan_explainer_agent import call_planning_agent, print_final_plan
-from parse_tasks_agent import call_parse_tasks_agent
+try:
+    # Script-style import (when running: python src/task_advisor.py)
+    from main import SAMPLE_TASKS, score_tasks, choose_shortlist, assemble_plan_data
+    from plan_explainer_agent import call_planning_agent, print_final_plan
+    from parse_tasks_agent import call_parse_tasks_agent
+except ImportError:
+    # Package-style import (when imported as src.task_advisor)
+    from src.main import SAMPLE_TASKS, score_tasks, choose_shortlist, assemble_plan_data
+    from src.plan_explainer_agent import call_planning_agent, print_final_plan
+    from src.parse_tasks_agent import call_parse_tasks_agent
 
 
 def run_task_advisor(
