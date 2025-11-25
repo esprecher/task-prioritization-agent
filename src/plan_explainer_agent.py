@@ -80,8 +80,8 @@ def call_planning_agent(plan_data: dict) -> dict:
         + json.dumps(plan_data, indent=2)
     )
 
-    print("\n[User → Model]")
-    print(user_prompt)
+    log_debug("[User → Model]")
+    log_debug(user_prompt)
 
     # Call the model
     response = client.models.generate_content(
@@ -91,10 +91,10 @@ def call_planning_agent(plan_data: dict) -> dict:
         ],
     )
 
-    print("\n[Model Explanation]")
-    print(response.text)
-    
-    print("\n\n-----\n[Parsed JSON Plan]")
+    log_debug("[Model Explanation]")
+    log_debug(response.text)
+
+    log_debug("[Parsed JSON Plan]")
     raw_text = response.text.strip()
 
     # If the model wrapped the JSON in Markdown code fences, strip them.
@@ -108,8 +108,8 @@ def call_planning_agent(plan_data: dict) -> dict:
             raw_text = raw_text[:-3].strip()
 
     plan_json = json.loads(raw_text)
-    # Pretty-print the parsed structure
-    print(json.dumps(plan_json, indent=2))
+    # Pretty-print the parsed structure via debug logging
+    log_debug(json.dumps(plan_json, indent=2))
 
     return plan_json
 
@@ -156,7 +156,7 @@ def main():
     # 1. Load environment variables
     load_dotenv()
     api_key = os.getenv("GOOGLE_API_KEY")
-    print("API Key Loaded:", bool(api_key))
+    log_debug(f"API Key Loaded: {bool(api_key)}")
 
     # 2. Build deterministic plan_data
     plan_data = build_demo_plan_data()

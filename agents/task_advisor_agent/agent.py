@@ -25,6 +25,11 @@ from google.adk.agents import Agent
 from src.task_advisor import run_task_advisor
 
 
+def log_debug(msg: str) -> None:
+    """Lightweight debug logger for the root agent."""
+    print(f"==== [root_agent] {msg}")
+
+
 def run_task_advisor_tool(
     raw_tasks_str: str,
     available_minutes: int = 60,
@@ -44,12 +49,17 @@ def run_task_advisor_tool(
         - nice_to_have
         - summary
     """
+    log_debug(
+        f"Calling run_task_advisor with available_minutes={available_minutes}, "
+        f"energy_level={energy_level}"
+    )
     plan_json = run_task_advisor(
         tasks=None,
         raw_tasks_str=raw_tasks_str,
         available_minutes=available_minutes,
         energy_level=energy_level,
     )
+    log_debug("Received plan_json from run_task_advisor.")
     return plan_json
 
 

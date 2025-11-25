@@ -20,6 +20,9 @@ import os
 from dotenv import load_dotenv
 from google import genai
 
+def log_debug(msg: str):
+    print(f"==== {msg}")
+
 MODEL_NAME = "gemini-2.5-flash-lite"
 
 
@@ -32,7 +35,7 @@ def call_parse_tasks_agent(raw_tasks_str: str):
     """
     load_dotenv()
     api_key = os.getenv("GOOGLE_API_KEY")
-    print("API Key Loaded:", bool(api_key))
+    log_debug(f"API Key Loaded: {bool(api_key)}")
 
     client = genai.Client()
 
@@ -55,8 +58,8 @@ def call_parse_tasks_agent(raw_tasks_str: str):
         + raw_tasks_str
     )
 
-    print("\n[ParseTasksAgent → Model]")
-    print(user_prompt)
+    log_debug("[ParseTasksAgent → Model]")
+    log_debug(user_prompt)
 
     response = client.models.generate_content(
         model=MODEL_NAME,
@@ -69,8 +72,8 @@ def call_parse_tasks_agent(raw_tasks_str: str):
     )
 
     raw_text = response.text.strip()
-    print("\n[ParseTasksAgent ← Raw Model Response]")
-    print(raw_text)
+    log_debug("[ParseTasksAgent ← Raw Model Response]")
+    log_debug(raw_text)
 
     # If the model still uses ``` fences, strip them
     if raw_text.startswith("```"):
@@ -82,8 +85,8 @@ def call_parse_tasks_agent(raw_tasks_str: str):
 
     tasks = json.loads(raw_text)
 
-    print("\n[ParseTasksAgent → Parsed Tasks]")
-    print(json.dumps(tasks, indent=2))
+    log_debug("[ParseTasksAgent → Parsed Tasks]")
+    log_debug(json.dumps(tasks, indent=2))
 
     return tasks
 
@@ -99,9 +102,9 @@ def main():
     """
 
     tasks = call_parse_tasks_agent(raw_tasks_str)
-    print("\nFinal normalized tasks (Python list):")
+    log_debug("Final normalized tasks (Python list):")
     for t in tasks:
-        print("-", t)
+        log_debug(f"- {t}")
 
 if __name__ == "__main__":
     main()

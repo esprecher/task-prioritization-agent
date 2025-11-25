@@ -15,6 +15,9 @@ This file will become the root orchestrator for the ADK agent system.
 from dotenv import load_dotenv
 import os
 
+def log_debug(msg: str):
+    print(f"==== {msg}")
+
 try:
     # Script-style import (when running: python src/task_advisor.py)
     from main import SAMPLE_TASKS, score_tasks, choose_shortlist, assemble_plan_data
@@ -55,12 +58,15 @@ def run_task_advisor(
             # Fallback to built-in sample tasks
             tasks = SAMPLE_TASKS
 
+    log_debug("Scoring tasks...")
     # ---- Step A: Score tasks (deterministic) ----
     scored = score_tasks(tasks)
 
+    log_debug("Choosing shortlist...")
     # ---- Step B: Choose shortlist (deterministic, for now) ----
     shortlist = choose_shortlist(scored, available_minutes=available_minutes)
 
+    log_debug("Assembling plan data...")
     # ---- Step C: Build plan_data ----
     plan_data = assemble_plan_data(
         all_tasks=scored,
@@ -69,10 +75,12 @@ def run_task_advisor(
         suggested_shortlist=shortlist,
     )
 
+    log_debug("Calling planning agent...")
     # ---- Step D: Call the planning agent ----
     plan_json = call_planning_agent(plan_data)
 
     # ---- Step E: Pretty-print output ----
+    log_debug("Final plan generated:")
     print_final_plan(plan_json)
 
     return plan_json
@@ -81,7 +89,7 @@ def run_task_advisor(
 def main():
     load_dotenv()
     api_key = os.getenv("GOOGLE_API_KEY")
-    print("API Key Loaded:", bool(api_key))
+    log_debug(f"API Key Loaded: {bool(api_key)}")
 
     # Demo: use raw JSON string and let the ParseTasksAgent normalize it
     raw_tasks_str = """
