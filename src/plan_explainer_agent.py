@@ -2,30 +2,91 @@
 Plan Explainer Agent
 
 Uses the existing deterministic planning logic (score_tasks, choose_shortlist,
-assemble_plan_data) and asks Gemini to explain the plan to the user.
+assemble_plan_data) and asks Gemini to explain/refine the plan for the user.
+
+In this version, the "planning agent" is implemented as a simple LLM-powered
+tool using the google-genai client, NOT as a full ADK Agent. The *true* ADK
+Agent is the root agent in `agents/task_advisor_agent/agent.py`, which calls
+this module as a tool.
 """
 
 import json
-import re
 from pprint import pformat
+import os
 
 from dotenv import load_dotenv
-import os
 from google import genai
 
 # Import your existing logic
 try:
-    from main import SAMPLE_TASKS, score_tasks, choose_shortlist, assemble_plan_data, log_debug, DEBUG
+    from main import (
+        SAMPLE_TASKS,
+        score_tasks,
+        choose_shortlist,
+        assemble_plan_data,
+        log_debug,
+        DEBUG,
+    )
 except ImportError:
-    from src.main import SAMPLE_TASKS, score_tasks, choose_shortlist, assemble_plan_data, log_debug, DEBUG
+    from src.main import (
+        SAMPLE_TASKS,
+        score_tasks,
+        choose_shortlist,
+        assemble_plan_data,
+        log_debug,
+        DEBUG,
+    )
 
 MODEL_NAME = "gemini-2.5-flash-lite"
 
+PLAN_AGENT_INSTRUCTION = (
+    "You are a Personal Task Prioritization Advisor.\n"
+    "You receive a JSON object describing:\n"
+    "- all tasks with scores and attributes (all_tasks)\n"
+    "- an optional suggested_shortlist chosen by a deterministic planner\n"
+    "- the user's available time (available_minutes) and energy level\n\n"
+    "Your job is to:\n"
+    "1) Choose the actual shortlist of tasks yourself, based primarily on\n"
+    "   all_tasks, available_minutes, and energy_level.\n"
+    "2) You may use suggested_shortlist as a hint, but you are free to adjust\n"
+    "   tasks and ordering if it would clearly improve the plan.\n"
+    "3) Suggest 0–2 'nice to have' tasks if there is extra time or energy.\n\n"
+    "Constraints:\n"
+    "- The total estimated minutes of the shortlist should roughly fit within\n"
+    "  available_minutes.\n"
+    "- You MUST respond with a single valid JSON object only.\n"
+    "- Do NOT include any text before or after the JSON.\n"
+    "- Do NOT wrap the JSON in Markdown code fences (no ```json ... ```).\n"
+    "- The JSON must have exactly these fields:\n"
+    "  - 'shortlist': list of {title, reason, est_minutes, score}\n"
+    "  - 'nice_to_have': list of {title, reason, est_minutes, score}\n"
+    "  - 'summary': a short string explaining the overall plan.\n"
+)
 
-def build_demo_plan_data():
+# Lazy-initialized global client so this works both when run directly
+# and when imported as a tool from the root ADK agent.
+_client: genai.Client | None = None
+
+
+def get_client() -> genai.Client:
+    """Return a cached google-genai client, loading the API key from .env."""
+    global _client
+    if _client is None:
+        load_dotenv()
+        api_key = os.getenv("GOOGLE_API_KEY")
+        log_debug(f"[plan_explainer_agent] API Key Loaded: {bool(api_key)}")
+        if not api_key:
+            raise RuntimeError(
+                "GOOGLE_API_KEY is not set. Please add it to your .env or environment."
+            )
+        _client = genai.Client(api_key=api_key)
+    return _client
+
+
+def build_demo_plan_data() -> dict:
     """
     Reuse the deterministic pipeline to create plan_data
-    that we can hand to the model.
+    that we can hand to the model when running this file directly.
     """
     scored = score_tasks(SAMPLE_TASKS)
     suggested_shortlist = choose_shortlist(scored, available_minutes=60)
@@ -41,83 +102,78 @@ def build_demo_plan_data():
     return plan_data
 
 
+def _strip_markdown_fences(raw_text: str) -> str:
+    """
+    Remove accidental ```json ... ``` or ``` ... ``` fences around the JSON.
+    The instructions explicitly tell the model not to use fences, but
+    this is a safety net.
+    """
+    text = raw_text.strip()
+    if text.startswith("```"):
+        # Drop the first line (``` or ```json)
+        first_newline = text.find("\n")
+        if first_newline != -1:
+            text = text[first_newline + 1 :]
+        # Drop trailing ```
+        if text.strip().endswith("```"):
+            text = text.rsplit("```", 1)[0]
+    return text.strip()
+
+
 def call_planning_agent(plan_data: dict) -> dict:
     """
-    Send plan_data to the LLM planning agent and return the parsed JSON result.
+    Send plan_data to the planning LLM (Gemini) and return the parsed JSON result.
+
+    This function is designed to be used both:
+    - from the root ADK agent (as a tool), and
+    - from this module's main() for direct testing.
     """
-    # 3. Initialize client
-    client = genai.Client()
-
-    # 4. Prepare prompts
-    system_instruction = (
-        "You are a Personal Task Prioritization Advisor.\n"
-        "You receive a JSON object describing:\n"
-        "- all tasks with scores and attributes (all_tasks)\n"
-        "- an optional suggested_shortlist chosen by a deterministic planner\n"
-        "- the user's available time (available_minutes) and energy level\n\n"
-        "Your job is to:\n"
-        "1) Choose the actual shortlist of tasks yourself, based primarily on "
-        "   all_tasks, available_minutes, and energy_level.\n"
-        "2) You may use suggested_shortlist as a hint, but you are free to adjust "
-        "   tasks and ordering if it would clearly improve the plan.\n"
-        "3) Suggest 0–2 'nice to have' tasks if there is extra time or energy.\n\n"
-        "Constraints:\n"
-        "- The total estimated minutes of the shortlist should roughly fit within "
-        "  available_minutes.\n"
-        "- You MUST respond with a single valid JSON object only.\n"
-        "- Do NOT include any text before or after the JSON.\n"
-        "- Do NOT wrap the JSON in Markdown code fences (no ```json ... ```).\n"
-        "- The JSON must have exactly these fields:\n"
-        "  - 'shortlist': list of {title, reason, est_minutes, score}\n"
-        "  - 'nice_to_have': list of {title, reason, est_minutes, score}\n"
-        "  - 'summary': a short string explaining the overall plan.\n"
-    )
-
+    # Build the user prompt. The system-like behavior is encoded in
+    # PLAN_AGENT_INSTRUCTION for simplicity.
     user_prompt = (
-        "Here is the current plan data as JSON.\n"
-        "Use it to construct your JSON response as described in the system instructions.\n\n"
-        "PLAN_DATA_JSON:\n"
+        PLAN_AGENT_INSTRUCTION
+        + "\n\nHere is the current plan data as JSON.\n"
+        + "Use it to construct your JSON response as described in the instructions.\n\n"
+        + "PLAN_DATA_JSON:\n"
         + json.dumps(plan_data, indent=2)
     )
 
     log_debug("[User → Model]")
     log_debug(user_prompt)
 
-    # Call the model
+    client = get_client()
     response = client.models.generate_content(
         model=MODEL_NAME,
-        contents=[
-            {"role": "user", "parts": [{"text": system_instruction + "\n\n" + user_prompt}]}
-        ],
+        contents=user_prompt,
     )
 
+    raw_text = (response.text or "").strip()
     log_debug("[Model Explanation]")
-    log_debug(response.text)
+    log_debug(raw_text)
+
+    cleaned = _strip_markdown_fences(raw_text)
+
+    # Try to parse the JSON. If it fails, log and re-raise for visibility.
+    try:
+        plan_json = json.loads(cleaned)
+    except json.JSONDecodeError as e:
+        log_debug("ERROR: Failed to parse JSON from model response.")
+        log_debug(f"Raw cleaned text was:\n{cleaned}")
+        raise e
 
     log_debug("[Parsed JSON Plan]")
-    raw_text = response.text.strip()
-
-    # If the model wrapped the JSON in Markdown code fences, strip them.
-    if raw_text.startswith("```"):
-        # Remove leading ``` or ```json line
-        first_newline = raw_text.find("\n")
-        if first_newline != -1:
-            raw_text = raw_text[first_newline + 1 :]
-        # Remove trailing ```
-        if raw_text.endswith("```"):
-            raw_text = raw_text[:-3].strip()
-
-    plan_json = json.loads(raw_text)
-    # Pretty-print the parsed structure via debug logging
     log_debug(json.dumps(plan_json, indent=2))
-
     return plan_json
 
 
 def print_final_plan(plan_json: dict) -> None:
+    """Pretty-print the final plan for CLI usage and debugging."""
     print("\nShortlist tasks chosen by the agent:")
     for t in plan_json.get("shortlist", []):
-        print(f"- {t.get('title')} (est={t.get('est_minutes')} min, score={t.get('score')})")
+        print(
+            f"- {t.get('title')} "
+            f"(est={t.get('est_minutes')} min, score={t.get('score')})"
+        )
 
     print("\n\n=== Final Task Plan ===")
 
@@ -153,21 +209,26 @@ def print_final_plan(plan_json: dict) -> None:
 
 
 def main():
-    # 1. Load environment variables
-    load_dotenv()
-    api_key = os.getenv("GOOGLE_API_KEY")
-    # log_debug(f"API Key Loaded: {bool(api_key)}")
+    """
+    Small CLI harness so you can run:
 
-    # 2. Build deterministic plan_data
+        python -m src.plan_explainer_agent
+
+    or
+
+        python src/plan_explainer_agent.py
+
+    to see a demo explanation using SAMPLE_TASKS.
+    """
+    # Build deterministic plan_data from SAMPLE_TASKS
     plan_data = build_demo_plan_data()
 
-    # 3. Call the planning agent
+    # Call the LLM-powered planning tool
     plan_json = call_planning_agent(plan_data)
 
-    # 4. Print the final plan:
-    #    - shortlist titles
-    #    - Final Task Plan (those loops you already have)
+    # Pretty-print the result
     print_final_plan(plan_json)
+
 
 if __name__ == "__main__":
     main()

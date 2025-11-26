@@ -1,5 +1,5 @@
 # Master debug flag for the entire script.
-DEBUG = True
+DEBUG = False
 
 import json
 from pprint import pformat
